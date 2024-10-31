@@ -1,0 +1,40 @@
+name: CI
+
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    lint:
+        name: Linting
+        runs-on: ubuntu-22.04
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v3
+
+            - uses: kalrnlo/setup-rokit@v1.0.0
+              name: Setup RoKit
+              with:
+                  token: ${{ github.token }}
+
+            - name: Lint
+              run: |
+                  wally install
+                  rojo sourcemap build.project.json -o sourcemap.json
+                  curl -o roblox.d.lua https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.lua
+                  luau-lsp analyze --sourcemap=./sourcemap.json --definitions=./roblox.d.lua ./plugin/src/init.server.luau
+
+    style:
+        name: Styling
+        runs-on: ubuntu-22.04
+        steps:
+            - uses: actions/checkout@v3
+            - uses: JohnnyMorganz/stylua-action@v3.0.0
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  version: latest
+                  args: --check ./plugin/src/init.server.luau

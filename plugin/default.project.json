@@ -1,0 +1,9 @@
+{
+  "name": "VSC2RBX",
+  "tree": {
+    "$className": "Folder",
+    "Main": {
+      "$path": "src"
+    }
+  }
+}

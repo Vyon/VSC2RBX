@@ -1,0 +1,10 @@
+# Plugin files
+*.rbxm*
+*.rbxl*
+
+# Extension
+out
+dist
+node_modules
+.vscode-test/
+*.vsix

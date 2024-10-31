@@ -1,0 +1,36 @@
+name: "tagged-release"
+
+on:
+    push:
+        branches:
+            - "main"
+jobs:
+    tagged-release:
+        name: "Tagged Release"
+        runs-on: "ubuntu-latest"
+
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v3
+
+            - uses: kalrnlo/setup-rokit@v1.0.0
+              name: Setup RoKit
+              with:
+                  token: ${{ github.token }}
+
+            - name: "Build"
+              run: |
+                  cd plugin
+                  rojo build -o VSC2RBX.rbxm
+
+                  mv ./VSC2RBX.rbxm ..
+                  cd ..
+
+            - uses: "marvinpinto/action-automatic-releases@latest"
+              with:
+                  repo_token: "${{ secrets.GITHUB_TOKEN }}"
+                  prerelease: false
+                  automatic_release_tag: "Latest"
+                  files: |
+                      VSC2RBX.rbxm
+                      LICENSE

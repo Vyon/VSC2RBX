@@ -1,0 +1,67 @@
+{
+	"name": "vsc2rbx",
+	"displayName": "VSC2RBX",
+	"description": "Execute scripts from VSCode in Roblox Studio!",
+	"publisher": "Vyon",
+	"version": "1.0.0",
+	"engines": {
+		"vscode": "^1.73.0"
+	},
+	"icon": "assets/icon.png",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Vyon/VSC2RBX"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:vsc2rbx.activate",
+		"onCommand:vsc2rbx.execute",
+		"onCommand:vsc2rbx.plugin",
+		"onLanguage:lua"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "vsc2rbx.activate",
+				"title": "VSC2RBX Activate"
+			},
+			{
+				"command": "vsc2rbx.execute",
+				"title": "VSC2RBX Execute"
+			},
+			{
+				"command": "vsc2rbx.plugin",
+				"title": "VSC2RBX Plugin Installation"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"pretest": "npm run compile && npm run lint",
+		"lint": "eslint src --ext ts",
+		"test": "node ./out/test/runTest.js"
+	},
+	"devDependencies": {
+		"@types/express": "^4.17.17",
+		"@types/glob": "^8.0.0",
+		"@types/mocha": "^10.0.1",
+		"@types/node": "^16.18.6",
+		"@types/vscode": "^1.73.0",
+		"@typescript-eslint/eslint-plugin": "^5.45.0",
+		"@typescript-eslint/parser": "^5.45.0",
+		"@vscode/test-electron": "^2.2.0",
+		"eslint": "^8.28.0",
+		"glob": "^8.0.3",
+		"mocha": "^10.1.0",
+		"typescript": "^4.9.3"
+	},
+	"dependencies": {
+		"axios": "^1.2.1",
+		"express": "^4.18.2"
+	}
+}
