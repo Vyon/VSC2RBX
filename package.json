@@ -2,19 +2,23 @@
 	"name": "vsc2rbx",
 	"displayName": "VSC2RBX",
 	"description": "Execute scripts from VSCode in Roblox Studio!",
-	"publisher": "Vyon",
+	"publisher": "vyon",
 	"version": "1.0.0",
 	"engines": {
 		"vscode": "^1.73.0"
 	},
+	"author": {
+		"name": "Vyon"
+	},
 	"icon": "assets/icon.png",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/Vyon/VSC2RBX"
+		"url": "https://github.com/Vyon/VSC2RBX.git"
 	},
 	"categories": [
 		"Other"
 	],
+	"pricing": "Free",
 	"activationEvents": [
 		"onCommand:vsc2rbx.activate",
 		"onCommand:vsc2rbx.execute",
@@ -61,6 +65,7 @@
 		"typescript": "^4.9.3"
 	},
 	"dependencies": {
+		"@vscode/vsce": "^3.2.1",
 		"axios": "^1.2.1",
 		"express": "^4.18.2"
 	}
