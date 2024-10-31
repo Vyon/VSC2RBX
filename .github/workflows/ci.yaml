@@ -23,9 +23,10 @@ jobs:
 
             - name: Lint
               run: |
+                  cd plugin
                   rojo sourcemap -o sourcemap.json
                   curl -o roblox.d.lua https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.lua
-                  luau-lsp analyze --sourcemap=./sourcemap.json --definitions=./roblox.d.lua ./plugin/src/init.server.luau
+                  luau-lsp analyze --sourcemap=./sourcemap.json --definitions=./roblox.d.lua ./src/init.server.luau
 
     style:
         name: Styling
