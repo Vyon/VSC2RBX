@@ -2,22 +2,22 @@
 import os from "os";
 import vscode from "vscode";
 
-import axios from "axios";
 import express from "express";
 
 import { writeFileSync } from "fs";
 
 // Constants:
 const PORT = 9999;
-const RELEASE_URL = "https://api.github.com/repos/Vyon/VSC2RBX/releases/latest";
+const RELEASE_URL =
+	"https://github.com/Vyon/VSC2RBX/releases/download/Latest/VSC2RBX.rbxm";
 
 // Variables:
 let queue: Array<string> = [];
 
 // Main:
-const App = express();
+const app = express();
 
-App.get("/api/receive", (req, res) => {
+app.get("/api/receive", (req, res) => {
 	if (queue.length > 0) {
 		res.status(200).send(queue.shift());
 	} else {
@@ -25,21 +25,29 @@ App.get("/api/receive", (req, res) => {
 	}
 });
 
-App.get("/api/ping", (req, res) => {
+app.get("/api/ping", (req, res) => {
 	vscode.window.showInformationMessage("Connected to Roblox Studio!");
 	res.status(200).send("OK");
 });
 
-App.listen(PORT, () => {
-	console.log("VSC2RBX is listening on port " + PORT);
-});
+let server: any;
 
 export function activate(context: vscode.ExtensionContext) {
+	console.log("VSC2RBX activated");
+
+	if (!server) {
+		server = app.listen(PORT, () => {
+			console.log("VSC2RBX is listening on port " + PORT);
+		});
+	}
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand("vsc2rbx.execute", () => {
 			const editor = vscode.window.activeTextEditor;
 
 			if (editor) {
+				console.log("Pushing script for execution.");
+
 				const document = editor.document;
 				const text = document.getText();
 				queue.push(text);
@@ -48,28 +56,24 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("vsc2rbx.plugin", () => {
+		vscode.commands.registerCommand("vsc2rbx.plugin", async () => {
 			vscode.window.showInformationMessage("Installing plugin...");
 
-			axios
-				.get(RELEASE_URL)
-				.then(async (response) => {
-					const plugin_source_url =
-						response.data.assets[0].browser_download_url;
+			// fetch for some reason doesn't exist to tsc so we ignore it :smirk:
+			// @ts-ignore
+			const response = await fetch(RELEASE_URL).catch((error) => {
+				vscode.window.showErrorMessage("Failed to install plugin!");
+				console.log(error);
+			});
 
-					const plugin_source = await axios.get(plugin_source_url);
+			const file: Uint8Array = await response.bytes();
 
-					writeFileSync(
-						`${os.homedir()}\\AppData\\Local\\Roblox\\Plugins\\VSC2RBX.rbxm`,
-						plugin_source.data
-					);
+			writeFileSync(
+				`${os.homedir()}\\AppData\\Local\\Roblox\\Plugins\\VSC2RBX.rbxm`,
+				file
+			);
 
-					vscode.window.showInformationMessage("Plugin installed!");
-				})
-				.catch((error) => {
-					vscode.window.showErrorMessage("Failed to install plugin!");
-					console.log(error);
-				});
+			vscode.window.showInformationMessage("Plugin installed!");
 		})
 	);
 
@@ -88,4 +92,11 @@ export function activate(context: vscode.ExtensionContext) {
 	item.show();
 }
 
-export function deactivate() {}
+export function deactivate() {
+	if (server) {
+		server.close();
+		server = null;
+	}
+
+	queue = [];
+}
