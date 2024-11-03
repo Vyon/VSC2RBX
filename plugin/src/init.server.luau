@@ -1,8 +1,22 @@
+--[==[
+
+	[init.server.luau]:
+		Entry point for the VSC2RBX plugin.
+
+	[Author(s)]:
+		- Vyon (https://github.com/Vyon)
+
+--]==]
+
+if game:GetService("RunService"):IsRunning() and game:GetService("RunService"):IsClient() then --> Just doesn't work on the client theres nothing that can be done about it either.
+	return
+end
+
 -- Services:
 local HttpService = game:GetService("HttpService")
 
 -- Modules:
-local loadstring = require(script.LuauInLuau).Run
+local loadstring = require(script.vLuau)
 
 -- Constants:
 local PORT = 9999
@@ -57,7 +71,7 @@ while true do
 	if Success and Response ~= "" then
 		local Ran, Error = pcall(function()
 			-- We don't errors to be displayed in the console, so we wrap it in a pcall.
-			return loadstring(Response)
+			return loadstring(Response, getfenv(), "VSC2RBX")()
 		end)
 
 		if not Ran then
