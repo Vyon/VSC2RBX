@@ -2,7 +2,7 @@
 VSC2RBX is an extension that executes scripts from VSCode in Roblox Studio.
 
 ## How does it work?
-Under the hood the extension creates a webserver to allow communication from studio to vscode via plugin. This plugin will often make requests to the webserver in an attempt to see if there are any new queued scripts to execute.
+Under the hood the extension creates a webserver to allow communication from studio to vscode via plugin. This plugin will make requests to the webserver in an attempt to see if there are any new queued scripts to execute. Then if the webserver sends back a script the plugin use [vLuau](https://github.com/kosuke14/vLuau) to execute the code in studio
 
 ## Installation
 1. Install the extension from the VSCode Marketplace.
