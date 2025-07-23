@@ -13,6 +13,7 @@ if game:GetService("RunService"):IsRunning() and game:GetService("RunService"):I
 end
 
 -- Services:
+local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
 -- Modules:
@@ -22,12 +23,21 @@ local loadstring = require(script.vLuau)
 local PORT = 9999
 local ROOT_URL = `http://localhost:{PORT}/api`
 
-local MAIN_URL = `{ROOT_URL}/receive`
 local PING_URL = `{ROOT_URL}/ping`
+local MAIN_URL = `{ROOT_URL}/receive`
+local STATUS_URL = `{ROOT_URL}/status`
 
-local REFRESH = 0.1
+local REFRESH_RATE = 0.1
 
 -- Private Functions:
+local function GetContext()
+	if RunService:IsRunning() then
+		return RunService:IsServer() and "Server" or "Client"
+	end
+
+	return "Edit"
+end
+
 local function PerformRequest(Params: {
 	Url: string,
 	Method: string,
@@ -36,7 +46,7 @@ local function PerformRequest(Params: {
 end
 
 local function IsHttpEnabled(Init: boolean?)
-	local Success = pcall(function()
+	local Success, Reason = pcall(function()
 		PerformRequest({
 			Url = PING_URL,
 			Method = "GET",
@@ -44,11 +54,25 @@ local function IsHttpEnabled(Init: boolean?)
 	end)
 
 	if Init and not Success then
-		warn("[VSC2RBX]: Failed to connect to the server. Please make sure that the server is running.")
+		warn("[VSC2RBX]: Failed to connect to the server:", Reason)
 		return Success
 	end
 
 	return Success
+end
+
+local function SetContextState(NewState: boolean)
+	PerformRequest({
+		Url = STATUS_URL,
+		Method = "POST",
+		Headers = {
+			["content-type"] = "application/json",
+		},
+		Body = HttpService:JSONEncode({
+			Context = GetContext(),
+			Active = NewState,
+		}),
+	})
 end
 
 -- Init:
@@ -60,24 +84,45 @@ if not Enabled then
 	end
 end
 
+local LocalQueue = {}
+
+SetContextState(true)
+
+plugin.Unloading:Once(function()
+	SetContextState(false)
+end)
+
 while true do
+	local Context = GetContext()
+
 	local Success, Response = pcall(function()
-		return PerformRequest({
-			Url = MAIN_URL,
-			Method = "GET",
-		}).Body
+		if #LocalQueue == 0 then
+			return PerformRequest({
+				Url = MAIN_URL,
+				Method = "GET",
+				Headers = {
+					context = Context,
+				},
+			}).Body
+		else
+			return table.remove(LocalQueue)
+		end
 	end)
 
 	if Success and Response ~= "" then
-		local Ran, Error = pcall(function()
-			-- We don't errors to be displayed in the console, so we wrap it in a pcall.
-			return loadstring(Response, getfenv(), "VSC2RBX")()
-		end)
+		task.defer(function()
+			local Ran, Error = pcall(function()
+				-- We don't errors to be displayed in the console, so we wrap it in a pcall.
+				return loadstring(Response, getfenv(), "VSC2RBX")()
+			end)
 
-		if not Ran then
-			print(Error)
-		end
+			if not Ran then
+				local Line = Error:match("Line: (%d+)")
+
+				warn(`Executed script errored on line {Line}: {Error:match("}: (.*)")}`)
+			end
+		end)
 	end
 
-	task.wait(REFRESH)
+	task.wait(REFRESH_RATE)
 end
