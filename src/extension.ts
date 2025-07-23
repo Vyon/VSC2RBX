@@ -5,6 +5,7 @@ import vscode from "vscode";
 import express from "express";
 
 import { writeFileSync } from "fs";
+import bodyParser from "body-parser";
 
 // Constants:
 const PORT = 9999;
@@ -12,23 +13,60 @@ const RELEASE_URL =
 	"https://github.com/Vyon/VSC2RBX/releases/download/Latest/VSC2RBX.rbxm";
 
 // Variables:
-let queue: Array<string> = [];
+let queue: { [key: string]: Array<string> } = {
+	Edit: [],
+	Server: [],
+};
+
+let active_contexts: Array<string> = [];
 
 // Main:
 const app = express();
+app.use(bodyParser.json());
 
 app.get("/api/receive", (req, res) => {
-	if (queue.length > 0) {
-		res.status(200).send(queue.shift());
+	const context = req.headers["context"] as string | undefined;
+
+	if (!queue[context]) return res.status(400).send("");
+
+	const context_queue = queue[context];
+
+	if (context_queue.length > 0) {
+		res.status(200).send(context_queue.shift());
 	} else {
 		res.status(204).send("");
 	}
 });
 
-app.get("/api/ping", (req, res) => {
-	vscode.window.showInformationMessage("Connected to Roblox Studio!");
+app.get("/api/status", (_, res) => {
+	return res.status(200).send(active_contexts);
+});
+
+app.post("/api/status", (req, res) => {
+	const { Context: context, Active: active } = req.body;
+
+	if (active && !active_contexts.includes(context)) {
+		active_contexts.push(context);
+	} else if (!active && active_contexts.includes(context)) {
+		const index = active_contexts.indexOf(context);
+		active_contexts.splice(index, 1);
+
+		// Reset the queue for the closed context:
+		queue[context] = [];
+	}
+
 	res.status(200).send("OK");
 });
+
+app.get("/api/ping", (_, res) => {
+	if (active_contexts.length === 0) {
+		vscode.window.showInformationMessage("Connected to Roblox Studio!");
+	}
+
+	res.status(200).send("OK");
+});
+
+console.log(app._router.stack);
 
 let server: any;
 
@@ -50,7 +88,13 @@ export function activate(context: vscode.ExtensionContext) {
 
 				const document = editor.document;
 				const text = document.getText();
-				queue.push(text);
+
+				// Check if there is an active server context:
+				if (active_contexts.includes("Server")) {
+					queue.Server.push(text);
+				} else {
+					queue.Edit.push(text);
+				}
 			}
 		})
 	);
@@ -98,5 +142,7 @@ export function deactivate() {
 		server = null;
 	}
 
-	queue = [];
+	for (const context of Object.keys(queue)) {
+		queue[context] = [];
+	}
 }
