@@ -8,6 +8,8 @@ import { writeFileSync } from "fs";
 import bodyParser from "body-parser";
 
 // Constants:
+const DATA_LIMIT = 5; // in kb
+
 const PORT = 9999;
 const RELEASE_URL =
 	"https://github.com/Vyon/VSC2RBX/releases/download/Latest/VSC2RBX.rbxm";
@@ -18,6 +20,7 @@ let queue: { [key: string]: Array<string> } = {
 	Server: [],
 };
 
+let target_context = "Edit";
 let active_contexts: Array<string> = [];
 
 // Main:
@@ -27,19 +30,38 @@ app.use(bodyParser.json());
 app.get("/api/receive", (req, res) => {
 	const context = req.headers["context"] as string | undefined;
 
-	if (!queue[context]) return res.status(400).send("");
+	if (context !== target_context)
+		return res
+			.setHeader("target-context", target_context)
+			.status(400)
+			.send("");
 
 	const context_queue = queue[context];
 
 	if (context_queue.length > 0) {
-		res.status(200).send(context_queue.shift());
+		let bytes = 0;
+		let scripts = [];
+
+		// Collect scripts until the DATA_LIMIT is reached
+		while (context_queue.length > 0) {
+			if (bytes + context_queue[0].length >= DATA_LIMIT * 1024) break;
+
+			let script = context_queue.shift();
+
+			bytes += script.length;
+			scripts.push(script);
+		}
+
+		res.status(200)
+			.setHeader("content-type", "application/json")
+			.send(JSON.stringify(scripts));
 	} else {
 		res.status(204).send("");
 	}
 });
 
 app.get("/api/status", (_, res) => {
-	return res.status(200).send(active_contexts);
+	return res.status(200).send(target_context);
 });
 
 app.post("/api/status", (req, res) => {
@@ -47,9 +69,17 @@ app.post("/api/status", (req, res) => {
 
 	if (active && !active_contexts.includes(context)) {
 		active_contexts.push(context);
+
+		if (context === "Server") {
+			target_context = "Server";
+		}
 	} else if (!active && active_contexts.includes(context)) {
 		const index = active_contexts.indexOf(context);
 		active_contexts.splice(index, 1);
+
+		if (context === "Server") {
+			target_context = "Edit";
+		}
 
 		// Reset the queue for the closed context:
 		queue[context] = [];
