@@ -27,7 +27,7 @@ local PING_URL = `{ROOT_URL}/ping`
 local MAIN_URL = `{ROOT_URL}/receive`
 local STATUS_URL = `{ROOT_URL}/status`
 
-local UPDATE_RATE = 0.25
+local UPDATE_INTERVAL = 0.25
 local CHECK_CONTEXT_RATE = 5
 
 -- Variables:
@@ -119,7 +119,7 @@ while true do
 	local IsTarget = Context == TargetContext
 
 	if not IsTarget then
-		task.wait(UPDATE_RATE)
+		task.wait(UPDATE_INTERVAL)
 		continue
 	end
 
@@ -160,5 +160,5 @@ while true do
 		end
 	end
 
-	task.wait(UPDATE_RATE)
+	task.wait(UPDATE_INTERVAL)
 end
