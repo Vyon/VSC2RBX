@@ -27,7 +27,12 @@ local PING_URL = `{ROOT_URL}/ping`
 local MAIN_URL = `{ROOT_URL}/receive`
 local STATUS_URL = `{ROOT_URL}/status`
 
-local REFRESH_RATE = 0.1
+local UPDATE_RATE = 0.25
+local CHECK_CONTEXT_RATE = 5
+
+-- Variables:
+local TargetContext = "Edit" --> This is the default target context
+local StatusThread
 
 -- Private Functions:
 local function GetContext()
@@ -84,45 +89,76 @@ if not Enabled then
 	end
 end
 
-local LocalQueue = {}
-
 SetContextState(true)
 
+StatusThread = task.defer(function()
+	while true do
+		local Success, Response = pcall(function()
+			return PerformRequest({
+				Url = STATUS_URL,
+				Method = "GET",
+			}).Body
+		end)
+
+		if Success and Response and table.find({ "Edit", "Server" }, Response) then
+			TargetContext = Response
+		end
+
+		task.wait(CHECK_CONTEXT_RATE)
+	end
+end)
+
 plugin.Unloading:Once(function()
+	task.cancel(StatusThread)
 	SetContextState(false)
 end)
 
 while true do
 	local Context = GetContext()
 
-	local Success, Response = pcall(function()
-		if #LocalQueue == 0 then
-			return PerformRequest({
-				Url = MAIN_URL,
-				Method = "GET",
-				Headers = {
-					context = Context,
-				},
-			}).Body
-		else
-			return table.remove(LocalQueue)
-		end
-	end)
+	local IsTarget = Context == TargetContext
 
-	if Success and Response ~= "" then
-		task.defer(function()
-			local Ran, Error = pcall(function()
-				-- We don't errors to be displayed in the console, so we wrap it in a pcall.
-				return loadstring(Response, getfenv(), "VSC2RBX")()
-			end)
-
-			if not Ran then
-				local Line = Error:match("Line: (%d+)")
-
-				warn(`Executed script errored on line {Line}: {Error:match("}: (.*)")}`)
-			end
-		end)
+	if not IsTarget then
+		task.wait(UPDATE_RATE)
+		continue
 	end
 
-	task.wait(REFRESH_RATE)
+	local Success, Response = pcall(function(): { string }
+		local Response = PerformRequest({
+			Url = MAIN_URL,
+			Method = "GET",
+			Headers = {
+				context = Context,
+			},
+		})
+
+		local TargetContextValue = Response.Headers["target-context"]
+
+		if TargetContextValue and TargetContextValue ~= Context then
+			TargetContext = TargetContextValue
+
+			return {}
+		end
+
+		return HttpService:JSONDecode(Response.Body)
+	end)
+
+	if Success and #Response > 0 then
+		for _, Script in Response do
+			task.defer(function()
+				local Ran, Error = pcall(function()
+					-- We don't errors to be displayed in the console, so we wrap it in a pcall.
+					return loadstring(Script, getfenv(), "VSC2RBX")()
+				end)
+
+				if not Ran then
+					local Line = Error:match("Line: (%d+)")
+
+					warn(`Executed script errored on line {Line}: {Error:match("}: (.*)")}`)
+				end
+			end)
+		end
+	end
+
+	task.wait(UPDATE_RATE)
 end
