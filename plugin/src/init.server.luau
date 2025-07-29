@@ -8,13 +8,10 @@
 
 --]==]
 
-if game:GetService("RunService"):IsRunning() and game:GetService("RunService"):IsClient() then --> Just doesn't work on the client theres nothing that can be done about it either.
-	return
-end
-
 -- Services:
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Modules:
 local loadstring = require(script.vLuau)
@@ -81,14 +78,43 @@ local function SetContextState(NewState: boolean)
 end
 
 -- Init:
-local Enabled = IsHttpEnabled(true)
+local Context = GetContext()
 
-if not Enabled then
-	while not IsHttpEnabled() do
-		task.wait(1)
+-- Setup client communicator:
+if Context == "Server" then
+	local VSCRBX = Instance.new("RemoteFunction")
+	VSCRBX.Name = "__VSC2RBX"
+	VSCRBX.Parent = ReplicatedStorage
+
+	VSCRBX.OnServerInvoke = function(_, ...)
+		local Args = { ... }
+
+		local _, Result = pcall(function()
+			return PerformRequest(table.unpack(Args))
+		end)
+
+		return Result
+	end
+elseif Context == "Client" then
+	local VSCRBX: RemoteFunction = ReplicatedStorage:WaitForChild("__VSC2RBX", 300)
+
+	PerformRequest = function(...)
+		return VSCRBX:InvokeServer(...)
 	end
 end
 
+-- Test if http is enabled:
+if Context ~= "Client" then
+	local Enabled = IsHttpEnabled(true)
+
+	if not Enabled then
+		while not IsHttpEnabled() do
+			task.wait(1)
+		end
+	end
+end
+
+-- Setup context related stuff:
 SetContextState(true)
 
 StatusThread = task.defer(function()
@@ -100,7 +126,7 @@ StatusThread = task.defer(function()
 			}).Body
 		end)
 
-		if Success and Response and table.find({ "Edit", "Server" }, Response) then
+		if Success and Response and table.find({ "Edit", "Server", "Client" }, Response) then
 			TargetContext = Response
 		end
 
@@ -113,9 +139,8 @@ plugin.Unloading:Once(function()
 	SetContextState(false)
 end)
 
+-- Main update loop:
 while true do
-	local Context = GetContext()
-
 	local IsTarget = Context == TargetContext
 
 	if not IsTarget then
