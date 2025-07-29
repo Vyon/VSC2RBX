@@ -108,7 +108,6 @@ app.get("/api/ping", (_, res) => {
 	res.status(200).send("OK");
 });
 
-
 export function activate(context: vscode.ExtensionContext) {
 	console.log("VSC2RBX activated");
 
@@ -211,7 +210,14 @@ export function deactivate() {
 		server = null;
 	}
 
+	delete state.TargetContext;
+	delete state.OnContextUpdate;
+
+	state.ActiveContexts = [];
+
 	for (const context of Object.keys(state.Queue)) {
 		state.Queue[context] = [];
 	}
+
+	state = undefined;
 }
