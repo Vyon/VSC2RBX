@@ -140,6 +140,8 @@ export function activate(context: vscode.ExtensionContext) {
 				Client: [],
 			},
 			OnContextUpdate: function (active) {
+				toggle_context.text = `$(info) ${state.TargetContext}`;
+
 				if (active.includes("Server") && active.includes("Client")) {
 					toggle_context.show();
 				} else {

@@ -25,7 +25,7 @@ local MAIN_URL = `{ROOT_URL}/receive`
 local STATUS_URL = `{ROOT_URL}/status`
 
 local UPDATE_INTERVAL = 0.25
-local CHECK_CONTEXT_RATE = 5
+local CHECK_CONTEXT_RATE = 1
 
 -- Variables:
 local TargetContext = "Edit" --> This is the default target context
