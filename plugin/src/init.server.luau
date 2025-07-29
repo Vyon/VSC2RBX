@@ -178,8 +178,11 @@ while true do
 
 				if not Ran then
 					local Line = Error:match("Line: (%d+)")
+					local Locations = Error:split(":")
 
-					warn(`Executed script errored on line {Line}: {Error:match("}: (.*)")}`)
+					local ScriptError = Locations[#Locations]:gsub("^ ", "")
+
+					warn(`Executed script errored on line {Line}: {ScriptError}`)
 				end
 			end)
 		end
