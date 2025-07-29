@@ -7,6 +7,9 @@ import express from "express";
 import { writeFileSync } from "fs";
 import bodyParser from "body-parser";
 
+// Types:
+type ExecutionContext = "Edit" | "Server" | "Client";
+
 // Constants:
 const DATA_LIMIT = 5; // in kb
 
@@ -15,13 +18,16 @@ const RELEASE_URL =
 	"https://github.com/Vyon/VSC2RBX/releases/download/Latest/VSC2RBX.rbxm";
 
 // Variables:
-let queue: { [key: string]: Array<string> } = {
-	Edit: [],
-	Server: [],
-};
+let server: any;
+let state: {
+	TargetContext: ExecutionContext;
+	ActiveContexts: Array<ExecutionContext>;
+	Queue: {
+		[K in ExecutionContext]: Array<string>;
+	};
 
-let target_context = "Edit";
-let active_contexts: Array<string> = [];
+	OnContextUpdate(active: Array<string>): void;
+};
 
 // Main:
 const app = express();
@@ -30,13 +36,13 @@ app.use(bodyParser.json());
 app.get("/api/receive", (req, res) => {
 	const context = req.headers["context"] as string | undefined;
 
-	if (context !== target_context)
+	if (context !== state.TargetContext)
 		return res
-			.setHeader("target-context", target_context)
+			.setHeader("target-context", state.TargetContext)
 			.status(400)
 			.send("");
 
-	const context_queue = queue[context];
+	const context_queue = state.Queue[context];
 
 	if (context_queue.length > 0) {
 		let bytes = 0;
@@ -60,76 +66,121 @@ app.get("/api/receive", (req, res) => {
 	}
 });
 
+app.get("/api/active", (_, res) => {
+	return res.status(200).send(state.ActiveContexts);
+});
+
 app.get("/api/status", (_, res) => {
-	return res.status(200).send(target_context);
+	return res.status(200).send(state.TargetContext);
 });
 
 app.post("/api/status", (req, res) => {
 	const { Context: context, Active: active } = req.body;
 
-	if (active && !active_contexts.includes(context)) {
-		active_contexts.push(context);
+	if (active && !state.ActiveContexts.includes(context)) {
+		state.ActiveContexts.push(context);
 
-		if (context === "Server") {
-			target_context = "Server";
+		if (context !== "Edit") {
+			state.TargetContext = context;
 		}
-	} else if (!active && active_contexts.includes(context)) {
-		const index = active_contexts.indexOf(context);
-		active_contexts.splice(index, 1);
+	} else if (!active && state.ActiveContexts.includes(context)) {
+		const index = state.ActiveContexts.indexOf(context);
+		state.ActiveContexts.splice(index, 1);
 
-		if (context === "Server") {
-			target_context = "Edit";
+		if (context === "Server" || context === "Client") {
+			state.TargetContext = "Edit";
 		}
 
 		// Reset the queue for the closed context:
-		queue[context] = [];
+		state.Queue[context] = [];
 	}
+
+	state.OnContextUpdate(state.ActiveContexts);
 
 	res.status(200).send("OK");
 });
 
 app.get("/api/ping", (_, res) => {
-	if (active_contexts.length === 0) {
+	if (state.ActiveContexts.length === 0) {
 		vscode.window.showInformationMessage("Connected to Roblox Studio!");
 	}
 
 	res.status(200).send("OK");
 });
 
-console.log(app._router.stack);
-
-let server: any;
-
 export function activate(context: vscode.ExtensionContext) {
 	console.log("VSC2RBX activated");
 
+	// Setup status bar items:
+	let item = vscode.window.createStatusBarItem(
+		vscode.StatusBarAlignment.Left
+	);
+	item.text = "$(debug-start) Execute Script";
+	item.tooltip = "Execute the currently opened script in roblox studio.";
+	item.command = "vsc2rbx.execute";
+	item.show();
+
+	let toggle_context = vscode.window.createStatusBarItem(
+		vscode.StatusBarAlignment.Left
+	);
+	toggle_context.text = "$(info) Server";
+	toggle_context.tooltip =
+		"Switches between the 'Server' and 'Client' context";
+	toggle_context.command = "vsc2rbx.togglecontext";
+
+	// Start server & create ext state:
 	if (!server) {
+		state = {
+			TargetContext: "Edit",
+			ActiveContexts: [],
+
+			Queue: {
+				Edit: [],
+				Server: [],
+				Client: [],
+			},
+			OnContextUpdate: function (active) {
+				toggle_context.text = `$(info) ${state.TargetContext}`;
+
+				if (active.includes("Server") && active.includes("Client")) {
+					toggle_context.show();
+				} else {
+					toggle_context.hide();
+				}
+			},
+		};
+
 		server = app.listen(PORT, () => {
 			console.log("VSC2RBX is listening on port " + PORT);
 		});
 	}
 
+	// Create commands:
 	context.subscriptions.push(
+		vscode.commands.registerCommand("vsc2rbx.togglecontext", () => {
+			if (state.TargetContext === "Edit") return;
+
+			let new_target =
+				state.TargetContext === "Server" ? "Client" : "Server";
+
+			state.TargetContext = new_target as ExecutionContext;
+			toggle_context.text = `$(info) ${state.TargetContext}`;
+		}),
 		vscode.commands.registerCommand("vsc2rbx.execute", () => {
 			const editor = vscode.window.activeTextEditor;
 
 			if (editor) {
-				console.log("Pushing script for execution.");
+				console.log(
+					`Queueing script for execution in the '${state.TargetContext}' context.`
+				);
 
 				const document = editor.document;
 				const text = document.getText();
 
 				// Check if there is an active server context:
-				if (active_contexts.includes("Server")) {
-					queue.Server.push(text);
-				} else {
-					queue.Edit.push(text);
-				}
+				state.Queue[state.TargetContext].push(text);
 			}
-		})
-	);
-
-	context.subscriptions.push(
+		}),
 		vscode.commands.registerCommand("vsc2rbx.plugin", async () => {
 			vscode.window.showInformationMessage("Installing plugin...");
 
@@ -148,22 +199,11 @@ export function activate(context: vscode.ExtensionContext) {
 			);
 
 			vscode.window.showInformationMessage("Plugin installed!");
-		})
-	);
-
-	context.subscriptions.push(
+		}),
 		vscode.commands.registerCommand("vsc2rbx.activate", () => {
 			vscode.window.showInformationMessage("Extension is activated");
 		})
 	);
-
-	let item = vscode.window.createStatusBarItem(
-		vscode.StatusBarAlignment.Left
-	);
-	item.text = "$(debug-start) Execute Script";
-	item.tooltip = "Execute the currently opened script in roblox studio.";
-	item.command = "vsc2rbx.execute";
-	item.show();
 }
 
 export function deactivate() {
@@ -172,7 +212,14 @@ export function deactivate() {
 		server = null;
 	}
 
-	for (const context of Object.keys(queue)) {
-		queue[context] = [];
+	delete state.TargetContext;
+	delete state.OnContextUpdate;
+
+	state.ActiveContexts = [];
+
+	for (const context of Object.keys(state.Queue)) {
+		state.Queue[context] = [];
 	}
+
+	state = undefined;
 }
