@@ -50,7 +50,11 @@ app.get("/api/receive", (req, res) => {
 
 		// Collect scripts until the DATA_LIMIT is reached
 		while (context_queue.length > 0) {
-			if (bytes + context_queue[0].length >= DATA_LIMIT * 1024) break;
+			if (
+				bytes !== 0 && // Let atleast 1 script go through if said script is over the data limit
+				bytes + context_queue[0].length >= DATA_LIMIT * 1024
+			)
+				break;
 
 			let script = context_queue.shift();
 
