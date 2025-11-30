@@ -47,7 +47,17 @@
 				"command": "vsc2rbx.plugin",
 				"title": "VSC2RBX Plugin Installation"
 			}
-		]
+		],
+		"configuration": {
+			"title": "VSC2RBX Settings",
+			"properties": {
+				"VSC2RBX.RemoteExecution": {
+					"type": "boolean",
+					"default": false,
+					"description": "Allows external programs to queue scripts for execution via the /api/execute endpoint"
+				}
+			}
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run package",

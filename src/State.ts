@@ -65,7 +65,9 @@ export class State {
 		let has_client = this.ActiveContexts.includes("Client");
 
 		if (this.TargetContext === "Edit") {
-			if (has_server) {
+			if (has_client) {
+				this.TargetContext = "Client";
+			} else if (has_server) {
 				this.TargetContext = "Server";
 			}
 		}

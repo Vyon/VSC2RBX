@@ -19,6 +19,9 @@ const RELEASE_URL =
 // Variables:
 let server: any;
 let state: State;
+let settings = {
+	RemoteExecution: false,
+};
 
 // Main:
 const app = express();
@@ -82,6 +85,89 @@ app.get("/api/active", (_, res) => {
 
 app.get("/api/status", (_, res) => {
 	return res.status(200).send(state.TargetContext);
+});
+
+app.post("/api/execute", (req, res) => {
+	if (!settings.RemoteExecution) {
+		res.status(400).send("This feature is not enabled");
+		return;
+	}
+
+	const body = req.body;
+
+	if (typeof body !== "object") {
+		res.status(404).send("Body not provided");
+		return;
+	}
+
+	const file = body.File;
+
+	if (typeof file !== "string") {
+		res.status(404).send("Body member 'File' is not of type string");
+		return;
+	}
+
+	const code = body.Code;
+
+	if (typeof code !== "string") {
+		res.status(404).send("Body member 'Code' is not of type string");
+		return;
+	}
+
+	let place_info;
+
+	if (typeof body.PlaceId === "string") {
+		if (!state.ActivePlaces[body.PlaceId]) {
+			res.status(404).send(
+				"Invalid place id, send a GET request to /api/places for a list of active places"
+			);
+			return;
+		}
+
+		place_info = state.ActivePlaces[body.PlaceId];
+	}
+
+	if (typeof body.Context === "string") {
+		let contexts = place_info
+			? place_info.ActiveContexts
+			: state.ActiveContexts;
+
+		if (!contexts.includes(body.Context)) {
+			res.status(404).send(
+				"Invalid context, send a GET request to /api/active for a list of active contexts"
+			);
+			return;
+		}
+
+		let context = body.Context;
+
+		if (context == "Edit" && contexts.length > 1) {
+			res.status(400).send(`Edit context cannot be used while playing'`);
+			return;
+		}
+
+		if (!place_info && state.TargetPlaceId) {
+			place_info = state.ActivePlaces[state.TargetPlaceId];
+		}
+
+		if (place_info) {
+			place_info.TargetContext = context;
+		}
+
+		state.TargetContext = context;
+		state.OnContextUpdate();
+	}
+
+	if (place_info) {
+		state.SetTargetPlace(body.PlaceId);
+	}
+
+	state.Execute({
+		Code: code,
+		File: file,
+	});
+
+	res.status(200).send("OK");
 });
 
 app.post("/api/status", (req, res) => {
@@ -173,6 +259,18 @@ app.get("/api/ping", (_, res) => {
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log("VSC2RBX activated");
+
+	const config = vscode.workspace.getConfiguration("VSC2RBX");
+
+	settings.RemoteExecution = config.get<boolean>("RemoteExecution", false);
+
+	vscode.workspace.onDidChangeConfiguration((event) => {
+		if (event.affectsConfiguration("VSC2RBX.RemoteExecution")) {
+			settings.RemoteExecution = vscode.workspace
+				.getConfiguration("VSC2RBX")
+				.get<boolean>("RemoteExecution");
+		}
+	});
 
 	// Start server & create ext state:
 	if (!server) {
