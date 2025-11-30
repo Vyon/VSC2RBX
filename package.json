@@ -36,6 +36,14 @@
 				"title": "VSC2RBX Execute"
 			},
 			{
+				"command": "vsc2rbx.context",
+				"title": "VSC2RBX Set Context"
+			},
+			{
+				"command": "vsc2rbx.place",
+				"title": "VSC2RBX Set Place"
+			},
+			{
 				"command": "vsc2rbx.plugin",
 				"title": "VSC2RBX Plugin Installation"
 			}

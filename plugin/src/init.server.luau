@@ -69,6 +69,7 @@ local function SetContextState(NewState: boolean)
 		Method = "POST",
 		Headers = {
 			["content-type"] = "application/json",
+			["roblox-name"] = game.Name,
 		},
 		Body = HttpService:JSONEncode({
 			Context = GetContext(),

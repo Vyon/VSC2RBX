@@ -1,0 +1,1 @@
+rojo build --plugin VSC2RBX.rbxm
