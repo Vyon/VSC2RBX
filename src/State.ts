@@ -28,7 +28,7 @@ export class State {
 
 	constructor() {}
 
-	Execute(info: { Code: string }) {
+	Execute(info: { Code: string; File: string }) {
 		console.log(
 			`Queueing script for execution in the '${this.TargetContext}' context.`
 		);
@@ -36,7 +36,7 @@ export class State {
 		this.Queue[this.TargetContext].push({
 			TargetPlaceId: this.TargetPlaceId,
 			Code: info.Code,
-			// TODO: Add file name
+			File: info.File,
 		});
 	}
 

@@ -58,7 +58,10 @@ app.get("/api/receive", (req, res) => {
 			let script = context_queue.shift();
 
 			bytes += script.Code.length;
-			scripts.push(script.Code);
+			scripts.push({
+				File: script.File,
+				Code: script.Code,
+			});
 		}
 
 		res.status(200)
@@ -221,6 +224,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 				state.Execute({
 					Code: text,
+					File: document.fileName,
 				});
 			}
 		}),

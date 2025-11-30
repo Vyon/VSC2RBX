@@ -149,7 +149,12 @@ while true do
 		continue
 	end
 
-	local Success, Response = pcall(function(): { string }
+	local Success, Response = pcall(function(): {
+		{
+			File: string,
+			Code: string,
+		}
+	}
 		local Response = PerformRequest({
 			Url = MAIN_URL,
 			Method = "GET",
@@ -174,7 +179,7 @@ while true do
 			task.defer(function()
 				local Ran, Error = pcall(function()
 					-- We don't errors to be displayed in the console, so we wrap it in a pcall.
-					return loadstring(Script, getfenv(), "VSC2RBX")()
+					return loadstring(Script.Code, getfenv(), `VSC2RBX/{Script.File}`)()
 				end)
 
 				if not Ran then
@@ -183,7 +188,7 @@ while true do
 
 					local ScriptError = Locations[#Locations]:gsub("^ ", "")
 
-					warn(`Executed script errored on line {Line}: {ScriptError}`)
+					warn(`[VSC2RBX/{Script.File}] errored on line {Line}: {ScriptError}`)
 				end
 			end)
 		end
